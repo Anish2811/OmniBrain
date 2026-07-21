@@ -1,8 +1,12 @@
+import logging
 from typing import List, Optional
+
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
 
 class EmbeddingGenerator:
-    
+
 
     def __init__(self, model_name: Optional[str] = None):
         
@@ -22,9 +26,12 @@ class EmbeddingGenerator:
             raise ValueError("Model name cannot be empty.")
 
         self.model_name = model_name.strip()
+        logger.info("Embedding model configured: %s", self.model_name)
 
     def load_model(self) -> None:
         
+        logger.warning("Embedding model loading is not implemented yet.")
+
         raise NotImplementedError(
             "load_model() must be implemented after the embedding "
             "model is finalized."
@@ -32,6 +39,13 @@ class EmbeddingGenerator:
 
     def generate_embedding(self, text: str) -> List[float]:
         
+        if not text.strip():
+            raise ValueError("Input text cannot be empty.")
+
+        logger.warning(
+            "generate_embedding() called before implementation."
+        )
+
         raise NotImplementedError(
             "generate_embedding() must be implemented after the "
             "embedding model is finalized."
@@ -39,6 +53,13 @@ class EmbeddingGenerator:
 
     def generate_embeddings(self, texts: List[str]) -> List[List[float]]:
         
+        if not texts:
+            raise ValueError("Input text list cannot be empty.")
+
+        logger.warning(
+            "generate_embeddings() called before implementation."
+        )
+
         raise NotImplementedError(
             "generate_embeddings() must be implemented after the "
             "embedding model is finalized."
@@ -53,8 +74,12 @@ if __name__ == "__main__":
     print("=" * 60)
     print(generator)
     print()
-    print("Status : Ready")
+
+    generator.configure("placeholder-model")
+
+    print("Status :", "Ready")
     print("Model  :", generator.model_name)
     print()
+
     print("This module currently provides a configurable interface.")
     print("The embedding model will be integrated once finalized.")
