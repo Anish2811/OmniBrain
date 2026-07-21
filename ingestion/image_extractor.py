@@ -1,26 +1,15 @@
-import fitz  # PyMuPDF
+import fitz 
 from pathlib import Path
 
 
 class ImageExtractor:
-    """
-    Extract embedded images from PDF documents.
-    """
+    
 
     def __init__(self):
         pass
 
     def extract_images(self, pdf_path: str, output_dir: str = "output/images") -> list:
-        """
-        Extract all embedded images from a PDF.
-
-        Args:
-            pdf_path (str): Path to the PDF document.
-            output_dir (str): Directory where extracted images will be saved.
-
-        Returns:
-            list: A list of dictionaries containing metadata for each extracted image.
-        """
+       
 
         pdf_file = Path(pdf_path)
 
