@@ -1,15 +1,23 @@
 import streamlit as st
 
-st.title("📤 Upload Documents")
+from components.header import render_header
+from components.uploader import render_uploader
 
-st.write("""
-Upload financial reports for AI processing.
+render_header(
+    "📤 Upload Documents",
+    "Upload financial reports for AI-powered analysis."
+)
 
-Future features:
-- PDF Upload
-- OCR
-- Chart Extraction
-- Vision Language Model
-""")
+uploaded_file = render_uploader()
 
-st.warning("Upload functionality will be connected to the backend.")
+st.markdown("---")
+
+if uploaded_file:
+
+    if st.button("🚀 Analyze Document"):
+
+        st.success("Analysis will be connected with the backend soon.")
+
+else:
+
+    st.info("Upload a document to continue.")
