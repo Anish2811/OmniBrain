@@ -1,6 +1,11 @@
 import streamlit as st
 
-st.title("🏠 Home")
+from components.header import render_header
+
+render_header(
+    "🏠 Home",
+    "Welcome to the OmniBrain Dashboard"
+)
 
 st.write("""
 Welcome to OmniBrain.
