@@ -3,30 +3,51 @@ import streamlit as st
 from components.header import render_header
 
 render_header(
-    "🏠 Home",
-    "Welcome to the OmniBrain Dashboard"
+    "🧠 OmniBrain",
+    "Multi-Modal AI Platform for Financial Document Analysis"
 )
 
-st.write("""
-Welcome to OmniBrain.
+st.success("🚀 Welcome to the OmniBrain Dashboard")
 
-This dashboard serves as the central hub for the application.
-From here, users will be able to upload financial reports,
-analyze them using AI-powered pipelines, and view the generated results.
+st.write(
+    """
+    OmniBrain helps analyze financial reports using AI-powered document
+    processing, OCR, table extraction and intelligent report generation.
+    """
+)
+
+st.markdown("---")
+
+st.subheader("✨ Main Features")
+
+col1, col2 = st.columns(2)
+
+with col1:
+    st.info("📤 Upload Financial Reports")
+    st.info("🤖 AI Document Analysis")
+
+with col2:
+    st.info("📊 Charts & Table Extraction")
+    st.info("📄 AI Generated Results")
+
+st.markdown("---")
+
+st.subheader("⚙ Workflow")
+
+st.write("""
+1. 📤 Upload your financial report
+
+2. 🔍 AI extracts text, tables and charts
+
+3. 🤖 Multi-agent pipeline processes the document
+
+4. 📄 View summarized results and insights
 """)
 
 st.markdown("---")
 
-st.subheader("🚀 Planned Features")
+st.subheader("📌 Project Status")
 
-st.markdown("""
-- 📤 Upload financial reports
-- 📊 AI-powered document analysis
-- 📑 View processed results
-- 📈 Extract charts and tables
-- 🤖 Multi-agent workflow
-""")
+st.progress(20)
 
-st.info("Dashboard UI is currently under development.")
-
-st.success("Frontend Home page initialized successfully.")
+st.caption("Frontend implementation is currently in progress.")
