@@ -8,39 +8,57 @@ st.set_page_config(
 
 st.title("🧠 OmniBrain")
 
-st.subheader("Agentic Multi-Modal RAG Orchestrator")
+st.subheader("Agentic Multi-Modal Financial Report Analysis")
 
-st.write(
-    """
-Welcome to OmniBrain.
+st.success("🚀 Welcome to the OmniBrain Dashboard")
 
-This application is designed to process financial reports using
-Agentic RAG, OCR, Vision Language Models and FastAPI.
-
-The frontend is currently under active development.
-"""
-)
+st.write("""
+OmniBrain is an AI-powered platform for analyzing financial reports.
+It combines OCR, Vision Language Models, RAG, and AI agents to
+extract information, understand charts and tables, and generate
+meaningful financial insights.
+""")
 
 st.markdown("---")
 
-st.sidebar.title("Navigation")
+st.subheader("✨ Platform Features")
 
-st.sidebar.info(
-    """
-Use the sidebar to access:
+col1, col2 = st.columns(2)
 
-🏠 Home
+with col1:
+    st.info("📤 Upload financial reports")
+    st.info("🤖 AI-powered document analysis")
+    st.info("📑 OCR & Text Extraction")
 
-📤 Upload
+with col2:
+    st.info("📊 Chart & Table Extraction")
+    st.info("🧠 Multi-Agent Processing")
+    st.info("📄 AI Generated Reports")
 
-📊 Analysis
+st.markdown("---")
 
-📑 Results
-"""
-)
+st.subheader("⚙ Workflow")
 
-st.success("Frontend project structure initialized successfully.")
+st.write("""
+1. 📤 Upload a financial report
 
-st.info(
-    "Backend integration will begin after API endpoints are finalized."
-)
+2. 🔍 OCR extracts text
+
+3. 📊 Charts & tables are detected
+
+4. 🤖 AI agents analyze the report
+
+5. 📄 Final insights are generated
+""")
+
+st.markdown("---")
+
+st.subheader("📌 Current Development Status")
+
+st.progress(20)
+
+st.caption("Frontend UI is under active development.")
+
+st.success("Frontend dashboard initialized successfully.")
+
+st.info("Backend integration will be added after API completion.")
