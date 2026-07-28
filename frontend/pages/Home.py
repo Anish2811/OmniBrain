@@ -1,6 +1,7 @@
 import streamlit as st
 
 from components.header import render_header
+from components.home_sections import render_main_features
 
 render_header(
     "🧠 OmniBrain",
@@ -18,17 +19,8 @@ st.write(
 
 st.markdown("---")
 
-st.subheader("✨ Main Features")
-
-col1, col2 = st.columns(2)
-
-with col1:
-    st.info("📤 Upload Financial Reports")
-    st.info("🤖 AI Document Analysis")
-
-with col2:
-    st.info("📊 Charts & Table Extraction")
-    st.info("📄 AI Generated Results")
+# Reusable Main Features Section
+render_main_features()
 
 st.markdown("---")
 
