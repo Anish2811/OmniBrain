@@ -15,3 +15,14 @@ OmniBrain is an agentic multi-modal Retrieval-Augmented Generation (RAG) system 
 - **Vector Database:** Qdrant
 - **Language Models:** Vision-Language Models (VLMs)
 - **Programming Language:** Python
+
+
+## 📦 Project Modules
+
+The project is organized into modular components to separate responsibilities and improve maintainability.
+
+- **Frontend** – Streamlit interface for user interaction.
+- **Backend** – FastAPI services handling requests and orchestration.
+- **LangGraph** – Coordinates the workflow between AI agents.
+- **Qdrant** – Stores document embeddings for semantic retrieval.
+- **Vision-Language Models** – Process and understand visual and textual inputs.
