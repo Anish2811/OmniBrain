@@ -21,6 +21,7 @@ uploaded_file = st.file_uploader(
 
 if uploaded_file:
     st.success(f"Selected File: {uploaded_file.name}")
+    st.session_state["uploaded_file"] = uploaded_file
 
     if st.button("Upload Document"):
         with st.spinner("Uploading document..."):
