@@ -1,54 +1,40 @@
 import streamlit as st
 
-st.title("📊 AI Financial Analysis")
+st.title("Financial Analysis")
 
-st.write("""
-Analyze uploaded financial reports using OCR, RAG,
-Vision Language Models, and Multi-Agent AI workflows.
-""")
-
-st.markdown("---")
-
-st.subheader("📄 Document Status")
-
-st.info("No document selected for analysis.")
+st.write(
+    "Analyze the uploaded financial document and view the extracted "
+    "financial information."
+)
 
 st.markdown("---")
 
-st.subheader("🧠 Analysis Modules")
+st.subheader("Document Status")
 
-col1, col2 = st.columns(2)
-
-with col1:
-    st.success("✅ OCR Text Extraction")
-    st.success("✅ Financial Entity Detection")
-    st.success("✅ Ratio Analysis")
-
-with col2:
-    st.success("✅ Chart & Table Analysis")
-    st.success("✅ RAG-based Insights")
-    st.success("✅ AI Summary Generation")
+if "uploaded_file" not in st.session_state:
+    st.info("No document selected for analysis.")
+else:
+    st.success("Document is ready for analysis.")
 
 st.markdown("---")
 
-st.subheader("⚙ Analysis Pipeline")
+st.subheader("Analysis")
 
-st.write("""
-1. 📤 Receive uploaded document
+analysis_type = st.selectbox(
+    "Select analysis type",
+    [
+        "Financial Summary",
+        "Ratio Analysis",
+        "Tables and Charts",
+    ]
+)
 
-2. 🔍 Extract text using OCR
-
-3. 📊 Detect tables and charts
-
-4. 🧠 Generate embeddings
-
-5. 🤖 AI Agents analyze the report
-
-6. 📄 Generate financial insights
-""")
+if st.button("Start Analysis"):
+    if "uploaded_file" not in st.session_state:
+        st.warning("Please upload a document first.")
+    else:
+        st.info(f"Starting {analysis_type}...")
 
 st.markdown("---")
 
-st.warning("Analysis will start after a document is uploaded.")
-
-st.info("Backend API integration is currently under development.")
+st.caption("Analysis results will be displayed after processing.")
