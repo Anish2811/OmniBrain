@@ -1,66 +1,59 @@
 import streamlit as st
 
-st.title("📄 Analysis Results")
 
-st.write("""
-View the AI-generated insights and extracted information
-from the uploaded financial reports.
-""")
+st.title("Analysis Results")
 
-st.markdown("---")
-
-st.subheader("📊 Analysis Summary")
-
-col1, col2, col3 = st.columns(3)
-
-with col1:
-    st.metric("Documents", "0")
-
-with col2:
-    st.metric("Charts", "0")
-
-with col3:
-    st.metric("Tables", "0")
-
-st.markdown("---")
-
-st.subheader("📝 AI Generated Summary")
-
-st.info(
-    """
-After analysis, this section will display the AI-generated
-summary of the uploaded financial report.
-"""
+st.write(
+    "View the results generated from the uploaded financial report."
 )
 
 st.markdown("---")
 
-st.subheader("📈 Financial Insights")
+# Check whether a document has been uploaded
+uploaded_file = st.session_state.get("uploaded_file")
 
-st.success("• Revenue Growth")
-st.success("• Profit Analysis")
-st.success("• Expense Breakdown")
-st.success("• Risk Indicators")
+if uploaded_file is None:
+    st.warning("No document has been uploaded yet.")
+    st.info("Upload a financial report before viewing results.")
 
-st.markdown("---")
+else:
+    st.subheader("Document")
 
-st.subheader("📂 Extracted Content")
+    st.write(f"File: {uploaded_file.name}")
 
-tab1, tab2, tab3 = st.tabs(
-    ["Text", "Tables", "Charts"]
-)
+    st.markdown("---")
 
-with tab1:
-    st.write("Extracted document text will appear here.")
+    st.subheader("Analysis Summary")
 
-with tab2:
-    st.write("Detected financial tables will appear here.")
+    # These values will be updated when backend analysis is available
+    col1, col2, col3 = st.columns(3)
 
-with tab3:
-    st.write("Detected charts and graphs will appear here.")
+    with col1:
+        st.metric("Documents", "1")
 
-st.markdown("---")
+    with col2:
+        st.metric("Tables", "0")
 
-st.warning("Results will become available after document analysis.")
+    with col3:
+        st.metric("Charts", "0")
 
-st.info("Backend APIs will populate this page automatically.")
+    st.markdown("---")
+
+    st.subheader("Summary")
+
+    st.info("Analysis results are not available yet.")
+
+    st.markdown("---")
+
+    st.subheader("Extracted Content")
+
+    tab1, tab2, tab3 = st.tabs(["Text", "Tables", "Charts"])
+
+    with tab1:
+        st.write("Extracted text will appear here.")
+
+    with tab2:
+        st.write("Detected tables will appear here.")
+
+    with tab3:
+        st.write("Detected charts will appear here.")
