@@ -1,6 +1,7 @@
 import streamlit as st
+from frontend.utils.api_client import upload_document
 
-st.title("📤 Upload Financial Reports")
+st.title(" Upload Financial Reports")
 
 st.write(
     """
@@ -11,44 +12,52 @@ or any financial document for AI-powered analysis.
 
 st.markdown("---")
 
-st.subheader("📁 Upload Document")
+st.subheader(" Upload Document")
 
 uploaded_file = st.file_uploader(
     "Choose a financial report",
-    type=["pdf", "docx", "txt"]
+    type=["pdf", "json"]
 )
 
 if uploaded_file:
     st.success(f"Selected File: {uploaded_file.name}")
 
+    if st.button("Upload Document"):
+        with st.spinner("Uploading document..."):
+            result = upload_document(uploaded_file)
+
+        if result.get("success"):
+            st.success(result.get("message", "Document uploaded successfully"))
+        else:
+            st.error(result.get("message", "Upload failed"))
+
+
 st.markdown("---")
 
-st.subheader("📌 Supported File Types")
+st.subheader(" Supported File Types")
 
 col1, col2 = st.columns(2)
 
 with col1:
-    st.info("📄 PDF Reports")
-    st.info("📝 DOCX Documents")
+    st.info(" PDF Reports")
 
 with col2:
-    st.info("📃 TXT Files")
-    st.info("📊 Financial Statements")
+    st.info(" JSON Files")
 
 st.markdown("---")
 
-st.subheader("⚙ AI Processing Pipeline")
+st.subheader("Processing Pipeline")
 
 st.write("""
-1. 📤 Upload document
+1.  Upload document
 
-2. 🔍 OCR & Text Extraction
+2.  OCR & Text Extraction
 
-3. 📊 Chart & Table Detection
+3.  Chart & Table Detection
 
-4. 🤖 AI Financial Analysis
+4.  AI Financial Analysis
 
-5. 📄 Generate Final Report
+5.  Generate Final Report
 """)
 
 st.markdown("---")
