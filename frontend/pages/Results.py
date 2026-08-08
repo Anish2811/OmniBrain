@@ -23,6 +23,12 @@ else:
 
     st.markdown("---")
 
+    st.subheader("Analysis Status")
+
+st.info("Analysis results will appear here after backend processing is completed.")
+
+st.markdown("---")
+
     st.subheader("Analysis Summary")
 
     # These values will be updated when backend analysis is available
