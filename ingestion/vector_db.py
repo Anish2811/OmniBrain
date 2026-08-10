@@ -1,9 +1,17 @@
 from abc import ABC, abstractmethod
 from typing import List, Dict, Any
-import numpy as np
+from uuid import uuid4
+
+from qdrant_client import QdrantClient
+from qdrant_client.models import (
+    Distance,
+    PointStruct,
+    VectorParams,
+)
 
 
 class BaseVectorDB(ABC):
+
     @abstractmethod
     def connect(self):
         pass
@@ -12,7 +20,7 @@ class BaseVectorDB(ABC):
     def add_documents(
         self,
         embeddings: List[List[float]],
-        metadata: List[Dict[str, Any]]
+        metadata: List[Dict[str, Any]],
     ):
         pass
 
@@ -21,7 +29,7 @@ class BaseVectorDB(ABC):
         self,
         ids: List[str],
         embeddings: List[List[float]],
-        metadata: List[Dict[str, Any]]
+        metadata: List[Dict[str, Any]],
     ):
         pass
 
@@ -29,7 +37,7 @@ class BaseVectorDB(ABC):
     def search(
         self,
         query_embedding: List[float],
-        top_k: int = 5
+        top_k: int = 5,
     ):
         pass
 
@@ -44,78 +52,205 @@ class BaseVectorDB(ABC):
 
 class ConfigurableVectorDB(BaseVectorDB):
 
-    def __init__(self):
-        self.documents = {}
+    def __init__(
+        self,
+        collection_name: str = "omnibrain_docs",
+        storage_path: str = "qdrant_data",
+    ):
+        self.collection_name = collection_name
+        self.storage_path = storage_path
+
+        self.client = None
         self.connected = False
 
     def connect(self):
+        if self.connected:
+            return
+
+        self.client = QdrantClient(
+            path=self.storage_path
+        )
+
         self.connected = True
-        print("Vector database connected.")
 
-    def add_documents(self, embeddings, metadata):
-        if not self.connected:
-            raise RuntimeError("Vector database is not connected.")
+        print(
+            f"Qdrant connected: {self.collection_name}"
+        )
 
-        for i, embedding in enumerate(embeddings):
-            doc_id = f"doc_{len(self.documents) + 1}"
-
-            self.documents[doc_id] = {
-                "embedding": embedding,
-                "metadata": metadata[i] if i < len(metadata) else {}
-            }
-
-        print(f"Stored {len(embeddings)} embeddings.")
-
-    def update_documents(self, ids, embeddings, metadata):
-        if not self.connected:
-            raise RuntimeError("Vector database is not connected.")
-
-        for i, doc_id in enumerate(ids):
-            if doc_id in self.documents:
-                self.documents[doc_id] = {
-                    "embedding": embeddings[i],
-                    "metadata": metadata[i] if i < len(metadata) else {}
-                }
-
-        print(f"Updated {len(ids)} documents.")
-
-    def search(self, query_embedding, top_k=5):
-        if not self.connected:
-            raise RuntimeError("Vector database is not connected.")
-
-        query = np.array(query_embedding)
-        results = []
-
-        for doc_id, doc in self.documents.items():
-            embedding = np.array(doc["embedding"])
-
-            similarity = np.dot(query, embedding) / (
-                np.linalg.norm(query) * np.linalg.norm(embedding)
+    def _ensure_collection(self, vector_size: int):
+        if self.client is None:
+            raise RuntimeError(
+                "Qdrant client is not connected."
             )
 
-            results.append({
-                "id": doc_id,
-                "score": float(similarity),
-                "metadata": doc["metadata"]
-            })
+        collections = self.client.get_collections()
 
-        results.sort(key=lambda x: x["score"], reverse=True)
+        exists = any(
+            collection.name == self.collection_name
+            for collection in collections.collections
+        )
 
-        return results[:top_k]
+        if not exists:
+            self.client.create_collection(
+                collection_name=self.collection_name,
+                vectors_config=VectorParams(
+                    size=vector_size,
+                    distance=Distance.COSINE,
+                ),
+            )
 
-    def delete(self, ids):
+            print(
+                f"Created Qdrant collection: "
+                f"{self.collection_name}"
+            )
+
+    def add_documents(
+        self,
+        embeddings: List[List[float]],
+        metadata: List[Dict[str, Any]],
+    ):
         if not self.connected:
-            raise RuntimeError("Vector database is not connected.")
+            raise RuntimeError(
+                "Vector database is not connected."
+            )
 
-        deleted_count = 0
+        if not embeddings:
+            return
 
-        for doc_id in ids:
-            if doc_id in self.documents:
-                del self.documents[doc_id]
-                deleted_count += 1
+        self._ensure_collection(
+            vector_size=len(embeddings[0])
+        )
 
-        print(f"Deleted {deleted_count} documents.")
+        points = []
+
+        for i, embedding in enumerate(embeddings):
+
+            payload = (
+                metadata[i]
+                if i < len(metadata)
+                else {}
+            )
+
+            points.append(
+                PointStruct(
+                    id=str(uuid4()),
+                    vector=embedding,
+                    payload=payload,
+                )
+            )
+
+        self.client.upsert(
+            collection_name=self.collection_name,
+            points=points,
+        )
+
+        print(
+            f"Stored {len(points)} embeddings in Qdrant."
+        )
+
+    def update_documents(
+        self,
+        ids: List[str],
+        embeddings: List[List[float]],
+        metadata: List[Dict[str, Any]],
+    ):
+        if not self.connected:
+            raise RuntimeError(
+                "Vector database is not connected."
+            )
+
+        if not embeddings:
+            return
+
+        if len(ids) != len(embeddings):
+            raise ValueError(
+                "Number of IDs must match number of embeddings."
+            )
+
+        self._ensure_collection(
+            vector_size=len(embeddings[0])
+        )
+
+        points = []
+
+        for i, doc_id in enumerate(ids):
+
+            payload = (
+                metadata[i]
+                if i < len(metadata)
+                else {}
+            )
+
+            points.append(
+                PointStruct(
+                    id=str(doc_id),
+                    vector=embeddings[i],
+                    payload=payload,
+                )
+            )
+
+        self.client.upsert(
+            collection_name=self.collection_name,
+            points=points,
+        )
+
+        print(
+            f"Updated {len(points)} documents."
+        )
+
+    def search(
+        self,
+        query_embedding: List[float],
+        top_k: int = 5,
+    ):
+        if not self.connected:
+            raise RuntimeError(
+                "Vector database is not connected."
+            )
+
+        if not query_embedding:
+            return []
+
+        self._ensure_collection(
+            vector_size=len(query_embedding)
+        )
+
+        results = self.client.query_points(
+            collection_name=self.collection_name,
+            query=query_embedding,
+            limit=top_k,
+            with_payload=True,
+        )
+
+        return [
+            {
+                "id": str(point.id),
+                "score": float(point.score),
+                "metadata": point.payload or {},
+            }
+            for point in results.points
+        ]
+
+    def delete(self, ids: List[str]):
+        if not self.connected:
+            raise RuntimeError(
+                "Vector database is not connected."
+            )
+
+        if not ids:
+            return
+
+        self.client.delete(
+            collection_name=self.collection_name,
+            points_selector=ids,
+        )
+
+        print(
+            f"Deleted {len(ids)} documents."
+        )
 
     def close(self):
+        self.client = None
         self.connected = False
-        print("Vector database connection closed.")
+
+        print("Qdrant connection closed.")
