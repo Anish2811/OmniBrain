@@ -219,3 +219,8 @@ __marimo__/
 
 # Uploaded documents
 uploads/
+
+# Qdrant local storage
+qdrant_data/
+# Qdrant local storage
+qdrant_data/
