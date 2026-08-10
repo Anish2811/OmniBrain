@@ -1,85 +1,89 @@
 import logging
 from typing import List, Optional
 
-logging.basicConfig(level=logging.INFO)
+from sentence_transformers import SentenceTransformer
+
 logger = logging.getLogger(__name__)
 
 
 class EmbeddingGenerator:
 
+    DEFAULT_MODEL = "all-MiniLM-L6-v2"
 
     def __init__(self, model_name: Optional[str] = None):
-        
-        self.model_name = model_name
-        self.model = None
+        self.model_name = model_name or self.DEFAULT_MODEL
+        self.model: Optional[SentenceTransformer] = None
 
     def __repr__(self) -> str:
-        
         return (
             f"{self.__class__.__name__}"
             f"(model_name={self.model_name!r})"
         )
 
     def configure(self, model_name: str) -> None:
-        
         if not model_name or not model_name.strip():
             raise ValueError("Model name cannot be empty.")
 
         self.model_name = model_name.strip()
-        logger.info("Embedding model configured: %s", self.model_name)
+        self.model = None
+
+        logger.info(
+            "Embedding model configured: %s",
+            self.model_name,
+        )
 
     def load_model(self) -> None:
-        
-        logger.warning("Embedding model loading is not implemented yet.")
-
-        raise NotImplementedError(
-            "load_model() must be implemented after the embedding "
-            "model is finalized."
+        logger.info(
+            "Loading embedding model: %s",
+            self.model_name,
         )
+
+        self.model = SentenceTransformer(self.model_name)
+
+        logger.info(
+            "Embedding model loaded successfully."
+        )
+
+    def _ensure_model(self) -> None:
+        if self.model is None:
+            self.load_model()
 
     def generate_embedding(self, text: str) -> List[float]:
-        
-        if not text.strip():
+        if not text or not text.strip():
             raise ValueError("Input text cannot be empty.")
 
-        logger.warning(
-            "generate_embedding() called before implementation."
+        self._ensure_model()
+
+        embedding = self.model.encode(
+            text.strip(),
+            convert_to_numpy=True,
         )
 
-        raise NotImplementedError(
-            "generate_embedding() must be implemented after the "
-            "embedding model is finalized."
-        )
+        return embedding.tolist()
 
-    def generate_embeddings(self, texts: List[str]) -> List[List[float]]:
-        
+    def generate_embeddings(
+        self,
+        texts: List[str],
+    ) -> List[List[float]]:
         if not texts:
             raise ValueError("Input text list cannot be empty.")
 
-        logger.warning(
-            "generate_embeddings() called before implementation."
+        cleaned_texts = [
+            text.strip()
+            for text in texts
+            if text and text.strip()
+        ]
+
+        if not cleaned_texts:
+            raise ValueError(
+                "Input text list contains no valid text."
+            )
+
+        self._ensure_model()
+
+        embeddings = self.model.encode(
+            cleaned_texts,
+            convert_to_numpy=True,
         )
 
-        raise NotImplementedError(
-            "generate_embeddings() must be implemented after the "
-            "embedding model is finalized."
-        )
-
-
-if __name__ == "__main__":
-    generator = EmbeddingGenerator()
-
-    print("=" * 60)
-    print("Embedding Generator Interface")
-    print("=" * 60)
-    print(generator)
-    print()
-
-    generator.configure("placeholder-model")
-
-    print("Status :", "Ready")
-    print("Model  :", generator.model_name)
-    print()
-
-    print("This module currently provides a configurable interface.")
-    print("The embedding model will be integrated once finalized.")
+        return embeddings.tolist()
