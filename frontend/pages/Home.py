@@ -4,11 +4,11 @@ from components.header import render_header
 from components.home_sections import render_main_features
 
 render_header(
-    "🧠 OmniBrain",
+    "OmniBrain",
     "Multi-Modal AI Platform for Financial Document Analysis"
 )
 
-st.success("🚀 Welcome to the OmniBrain Dashboard")
+st.success("Welcome to the OmniBrain Dashboard")
 
 st.write(
     """
@@ -24,21 +24,21 @@ render_main_features()
 
 st.markdown("---")
 
-st.subheader("⚙ Workflow")
+st.subheader("Workflow")
 
 st.write("""
-1. 📤 Upload your financial report
+1. Upload your financial report
 
-2. 🔍 AI extracts text, tables and charts
+2. AI extracts text, tables and charts
 
-3. 🤖 Multi-agent pipeline processes the document
+3. Multi-agent pipeline processes the document
 
-4. 📄 View summarized results and insights
+4. View summarized results and insights
 """)
 
 st.markdown("---")
 
-st.subheader("📌 Project Status")
+st.subheader("Project Status")
 
 st.progress(20)
 

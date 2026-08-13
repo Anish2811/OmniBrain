@@ -1,7 +1,7 @@
 import streamlit as st
 from frontend.utils.api_client import upload_document
 
-st.title(" Upload Financial Reports")
+st.title("Upload Financial Reports")
 
 st.write(
     """
@@ -12,7 +12,7 @@ or any financial document for AI-powered analysis.
 
 st.markdown("---")
 
-st.subheader(" Upload Document")
+st.subheader("Upload Document")
 
 uploaded_file = st.file_uploader(
     "Choose a financial report",
@@ -35,30 +35,30 @@ if uploaded_file:
 
 st.markdown("---")
 
-st.subheader(" Supported File Types")
+st.subheader("Supported File Types")
 
 col1, col2 = st.columns(2)
 
 with col1:
-    st.info(" PDF Reports")
+    st.info("PDF Reports")
 
 with col2:
-    st.info(" JSON Files")
+    st.info("JSON Files")
 
 st.markdown("---")
 
 st.subheader("Processing Pipeline")
 
 st.write("""
-1.  Upload document
+1. Upload document
 
-2.  OCR & Text Extraction
+2. OCR & Text Extraction
 
-3.  Chart & Table Detection
+3. Chart & Table Detection
 
-4.  AI Financial Analysis
+4. AI Financial Analysis
 
-5.  Generate Final Report
+5. Generate Final Report
 """)
 
 st.markdown("---")
