@@ -224,3 +224,6 @@ uploads/
 qdrant_data/
 # Qdrant local storage
 qdrant_data/
+
+# OmniBrain local SQL database
+database/omnibrain.db
