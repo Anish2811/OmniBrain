@@ -1,5 +1,6 @@
 from fastapi import APIRouter, HTTPException
 from openai import OpenAI
+import openai
 
 from backend.app.api.schemas import QueryRequest
 from backend.app.api.schemas import QueryResponse
@@ -163,8 +164,32 @@ async def chat(request: QueryRequest):
     except HTTPException:
         raise
 
-    except Exception as exc:
+    except openai.AuthenticationError:
+        raise HTTPException(
+            status_code=503,
+            detail="The LLM service authentication is unavailable.",
+        )
+
+    except openai.RateLimitError:
+        raise HTTPException(
+            status_code=503,
+            detail="The LLM service quota or rate limit has been reached.",
+        )
+
+    except openai.APIConnectionError:
+        raise HTTPException(
+            status_code=503,
+            detail="The LLM service is temporarily unavailable.",
+        )
+
+    except openai.APIStatusError:
+        raise HTTPException(
+            status_code=502,
+            detail="The LLM service returned an error.",
+        )
+
+    except Exception:
         raise HTTPException(
             status_code=500,
-            detail=f"RAG generation failed: {exc}",
+            detail="RAG generation failed due to an internal server error.",
         )
