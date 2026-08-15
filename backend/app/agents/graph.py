@@ -2,6 +2,7 @@ from typing import Literal, TypedDict
 
 from langgraph.graph import END, START, StateGraph
 
+from backend.app.agents.sql_agent import run_sql_agent
 from ingestion.retrieval import DocumentRetriever
 
 
@@ -17,7 +18,10 @@ class OmniBrainState(TypedDict, total=False):
     error: str
 
 
-def _classify_query(query: str) -> Literal["search", "sql", "vision"]:
+def _classify_query(
+    query: str,
+) -> Literal["search", "sql", "vision"]:
+
     query_lower = query.lower()
 
     sql_keywords = [
@@ -49,22 +53,34 @@ def _classify_query(query: str) -> Literal["search", "sql", "vision"]:
         "line chart",
     ]
 
-    if any(keyword in query_lower for keyword in vision_keywords):
+    if any(
+        keyword in query_lower
+        for keyword in vision_keywords
+    ):
         return "vision"
 
-    if any(keyword in query_lower for keyword in sql_keywords):
+    if any(
+        keyword in query_lower
+        for keyword in sql_keywords
+    ):
         return "sql"
 
     return "search"
 
 
-def supervisor(state: OmniBrainState) -> OmniBrainState:
+def supervisor(
+    state: OmniBrainState,
+) -> OmniBrainState:
+
     query = state.get("query", "").strip()
 
     if not query:
         return {
             "route": "search",
-            "agent_trace": ["supervisor", "invalid_query"],
+            "agent_trace": [
+                "supervisor",
+                "invalid_query",
+            ],
             "error": "Query cannot be empty.",
         }
 
@@ -72,11 +88,17 @@ def supervisor(state: OmniBrainState) -> OmniBrainState:
 
     return {
         "route": route,
-        "agent_trace": ["supervisor", f"route:{route}"],
+        "agent_trace": [
+            "supervisor",
+            f"route:{route}",
+        ],
     }
 
 
-def search_agent(state: OmniBrainState) -> OmniBrainState:
+def search_agent(
+    state: OmniBrainState,
+) -> OmniBrainState:
+
     query = state["query"]
     top_k = state.get("top_k", 5)
 
@@ -89,9 +111,19 @@ def search_agent(state: OmniBrainState) -> OmniBrainState:
 
     context_parts = []
 
-    for index, result in enumerate(results, start=1):
-        metadata = result.get("metadata", {})
-        text = metadata.get("text", "").strip()
+    for index, result in enumerate(
+        results,
+        start=1,
+    ):
+        metadata = result.get(
+            "metadata",
+            {},
+        )
+
+        text = metadata.get(
+            "text",
+            "",
+        ).strip()
 
         if not text:
             continue
@@ -102,13 +134,17 @@ def search_agent(state: OmniBrainState) -> OmniBrainState:
         )
 
         page_number = metadata.get(
-            "page_number"
+            "page_number",
         )
 
-        source_label = f"Source {index} ({document}"
+        source_label = (
+            f"Source {index} ({document}"
+        )
 
         if page_number is not None:
-            source_label += f", page {page_number}"
+            source_label += (
+                f", page {page_number}"
+            )
 
         source_label += ")"
 
@@ -116,10 +152,15 @@ def search_agent(state: OmniBrainState) -> OmniBrainState:
             f"{source_label}:\n{text}"
         )
 
-    context = "\n\n".join(context_parts)
+    context = "\n\n".join(
+        context_parts
+    )
 
     trace = list(
-        state.get("agent_trace", [])
+        state.get(
+            "agent_trace",
+            [],
+        )
     )
 
     trace.extend(
@@ -136,35 +177,37 @@ def search_agent(state: OmniBrainState) -> OmniBrainState:
     }
 
 
-def route_after_supervisor(
-    state: OmniBrainState,
-) -> str:
-    route = state.get(
-        "route",
-        "search",
-    )
-
-    if route == "sql":
-        return "sql_unavailable"
-
-    if route == "vision":
-        return "vision_unavailable"
-
-    return "search_agent"
-
-
-def sql_unavailable(
+def sql_agent(
     state: OmniBrainState,
 ) -> OmniBrainState:
-    trace = list(
-        state.get("agent_trace", [])
+
+    query = state["query"]
+
+    result = run_sql_agent(
+        query,
     )
 
-    trace.append("sql_agent")
+    trace = list(
+        state.get(
+            "agent_trace",
+            [],
+        )
+    )
+
+    trace.extend(
+        [
+            "sql_agent",
+            "sqlite",
+        ]
+    )
 
     return {
-        "answer": (
-            "The SQL agent is not connected yet."
+        "results": result["rows"],
+        "context": str(
+            result["rows"]
+        ),
+        "answer": str(
+            result["rows"]
         ),
         "agent_trace": trace,
     }
@@ -173,21 +216,47 @@ def sql_unavailable(
 def vision_unavailable(
     state: OmniBrainState,
 ) -> OmniBrainState:
+
     trace = list(
-        state.get("agent_trace", [])
+        state.get(
+            "agent_trace",
+            [],
+        )
     )
 
-    trace.append("vision_agent")
+    trace.append(
+        "vision_agent"
+    )
 
     return {
         "answer": (
-            "The Vision agent is not connected yet."
+            "The Vision agent is not "
+            "connected yet."
         ),
         "agent_trace": trace,
     }
 
 
+def route_after_supervisor(
+    state: OmniBrainState,
+) -> str:
+
+    route = state.get(
+        "route",
+        "search",
+    )
+
+    if route == "sql":
+        return "sql_agent"
+
+    if route == "vision":
+        return "vision_unavailable"
+
+    return "search_agent"
+
+
 def build_omnibrain_graph():
+
     graph = StateGraph(
         OmniBrainState
     )
@@ -203,8 +272,8 @@ def build_omnibrain_graph():
     )
 
     graph.add_node(
-        "sql_unavailable",
-        sql_unavailable,
+        "sql_agent",
+        sql_agent,
     )
 
     graph.add_node(
@@ -222,8 +291,10 @@ def build_omnibrain_graph():
         route_after_supervisor,
         {
             "search_agent": "search_agent",
-            "sql_unavailable": "sql_unavailable",
-            "vision_unavailable": "vision_unavailable",
+            "sql_agent": "sql_agent",
+            "vision_unavailable": (
+                "vision_unavailable"
+            ),
         },
     )
 
@@ -233,7 +304,7 @@ def build_omnibrain_graph():
     )
 
     graph.add_edge(
-        "sql_unavailable",
+        "sql_agent",
         END,
     )
 
