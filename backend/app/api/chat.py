@@ -7,40 +7,17 @@ from backend.app.api.schemas import QueryResponse
 from backend.app.api.schemas import SourceCitation
 
 from Config.Config import settings
-from ingestion.retrieval import DocumentRetriever
+from backend.app.agents.graph import omnibrain_graph
 
 
 router = APIRouter(tags=["Chat"])
 
 
-def _build_context(results):
-    context_parts = []
+def _generate_rag_answer(
+    query: str,
+    context: str,
+) -> str:
 
-    for index, result in enumerate(results, start=1):
-        metadata = result.get("metadata", {})
-        text = metadata.get("text", "").strip()
-
-        if not text:
-            continue
-
-        document = metadata.get("document", "unknown")
-        page_number = metadata.get("page_number")
-
-        source_label = f"Source {index} ({document}"
-
-        if page_number is not None:
-            source_label += f", page {page_number}"
-
-        source_label += ")"
-
-        context_parts.append(
-            f"{source_label}:\n{text}"
-        )
-
-    return "\n\n".join(context_parts)
-
-
-def _generate_rag_answer(query: str, context: str) -> str:
     if not settings.openai_api_key:
         raise RuntimeError(
             "OPENAI_API_KEY is not configured."
@@ -85,8 +62,97 @@ Document context:
     return answer
 
 
-@router.post("/chat", response_model=QueryResponse)
-async def chat(request: QueryRequest):
+def _build_search_citations(
+    results,
+) -> list:
+
+    citations = []
+
+    for result in results:
+        metadata = result.get(
+            "metadata",
+            {},
+        )
+
+        citations.append(
+            SourceCitation(
+                source_type=metadata.get(
+                    "document_type",
+                    "text",
+                ),
+                content_snippet=metadata.get(
+                    "text",
+                    "",
+                )[:500],
+                document=metadata.get(
+                    "document"
+                ),
+                document_path=metadata.get(
+                    "document_path"
+                ),
+                chunk_id=metadata.get(
+                    "chunk_id"
+                ),
+                page_number=metadata.get(
+                    "page_number"
+                ),
+                word_start=metadata.get(
+                    "word_start"
+                ),
+                word_end=metadata.get(
+                    "word_end"
+                ),
+                score=result.get(
+                    "score"
+                ),
+            )
+        )
+
+    return citations
+
+
+def _build_vision_citations(
+    citations,
+) -> list:
+
+    response_citations = []
+
+    for citation in citations:
+        response_citations.append(
+            SourceCitation(
+                source_type=citation.get(
+                    "source_type",
+                    "image",
+                ),
+                content_snippet=citation.get(
+                    "content_snippet",
+                    "",
+                )[:500],
+                document=citation.get(
+                    "filename"
+                ),
+                document_path=citation.get(
+                    "image_path"
+                ),
+                page_number=citation.get(
+                    "page_number"
+                ),
+                score=citation.get(
+                    "score"
+                ),
+            )
+        )
+
+    return response_citations
+
+
+@router.post(
+    "/chat",
+    response_model=QueryResponse,
+)
+async def chat(
+    request: QueryRequest,
+):
 
     if not request.query or not request.query.strip():
         raise HTTPException(
@@ -95,90 +161,110 @@ async def chat(request: QueryRequest):
         )
 
     try:
-        retriever = DocumentRetriever()
-
-        results = retriever.retrieve(
-            request.query.strip(),
-            top_k=request.top_k,
+        graph_result = omnibrain_graph.invoke(
+            {
+                "query": request.query.strip(),
+                "top_k": request.top_k,
+            }
         )
 
-        if not results:
-            return QueryResponse(
-                answer=(
-                    "I could not find relevant information "
-                    "in the uploaded documents."
-                ),
-                citations=[],
-                agent_trace=[
-                    "retrieval",
-                    "qdrant",
-                    "no_results",
-                ],
+        route = graph_result.get(
+            "route",
+            "search",
+        )
+
+        results = graph_result.get(
+            "results",
+            [],
+        )
+
+        context = graph_result.get(
+            "context",
+            "",
+        )
+
+        agent_trace = list(
+            graph_result.get(
+                "agent_trace",
+                [],
             )
+        )
+
+        answer = graph_result.get(
+            "answer",
+            "",
+        )
 
         citations = []
 
-        for result in results:
-            metadata = result.get(
-                "metadata",
-                {},
+        if route == "search":
+
+            if not results:
+                return QueryResponse(
+                    answer=(
+                        "I could not find relevant information "
+                        "in the uploaded documents."
+                    ),
+                    citations=[],
+                    agent_trace=agent_trace + [
+                        "no_results",
+                    ],
+                )
+
+            if not context:
+                raise RuntimeError(
+                    "Retrieved documents contain no usable text."
+                )
+
+            answer = _generate_rag_answer(
+                request.query.strip(),
+                context,
             )
 
-            citations.append(
-                SourceCitation(
-                    source_type=metadata.get(
-                        "document_type",
-                        "text",
-                    ),
-                    content_snippet=metadata.get(
-                        "text",
-                        "",
-                    )[:500],
-                    document=metadata.get(
-                        "document"
-                    ),
-                    document_path=metadata.get(
-                        "document_path"
-                    ),
-                    chunk_id=metadata.get(
-                        "chunk_id"
-                    ),
-                    page_number=metadata.get(
-                        "page_number"
-                    ),
-                    word_start=metadata.get(
-                        "word_start"
-                    ),
-                    word_end=metadata.get(
-                        "word_end"
-                    ),
-                    score=result.get(
-                        "score"
-                    ),
+            citations = _build_search_citations(
+                results
+            )
+
+            agent_trace.extend(
+                [
+                    "llm",
+                    "rag",
+                ]
+            )
+
+        elif route == "vision":
+
+            citations = _build_vision_citations(
+                graph_result.get(
+                    "citations",
+                    [],
                 )
             )
 
-        context = _build_context(results)
+            if not answer:
+                answer = (
+                    "I could not analyze the requested "
+                    "image."
+                )
 
-        if not context:
-            raise RuntimeError(
-                "Retrieved documents contain no usable text."
+        elif route == "sql":
+
+            if not answer:
+                answer = str(
+                    results
+                )
+
+        else:
+
+            answer = (
+                answer
+                or "Unable to process the request."
             )
-
-        answer = _generate_rag_answer(
-            request.query.strip(),
-            context,
-        )
 
         return QueryResponse(
             answer=answer,
             citations=citations,
-            agent_trace=[
-                "retrieval",
-                "qdrant",
-                "llm",
-                "rag",
-            ],
+            agent_trace=agent_trace,
         )
 
     except HTTPException:
@@ -187,29 +273,49 @@ async def chat(request: QueryRequest):
     except openai.AuthenticationError:
         raise HTTPException(
             status_code=503,
-            detail="The LLM service authentication is unavailable.",
+            detail=(
+                "The LLM service authentication "
+                "is unavailable."
+            ),
         )
 
     except openai.RateLimitError:
         raise HTTPException(
             status_code=503,
-            detail="The LLM service quota or rate limit has been reached.",
+            detail=(
+                "The LLM service quota or rate "
+                "limit has been reached."
+            ),
         )
 
     except openai.APIConnectionError:
         raise HTTPException(
             status_code=503,
-            detail="The LLM service is temporarily unavailable.",
+            detail=(
+                "The LLM service is temporarily "
+                "unavailable."
+            ),
         )
 
     except openai.APIStatusError:
         raise HTTPException(
             status_code=502,
-            detail="The LLM service returned an error.",
+            detail=(
+                "The LLM service returned an error."
+            ),
+        )
+
+    except ValueError as exc:
+        raise HTTPException(
+            status_code=400,
+            detail=str(exc),
         )
 
     except Exception:
         raise HTTPException(
             status_code=500,
-            detail="RAG generation failed due to an internal server error.",
+            detail=(
+                "OmniBrain failed to process "
+                "the request."
+            ),
         )
