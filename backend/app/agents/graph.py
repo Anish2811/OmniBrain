@@ -3,6 +3,7 @@ from typing import Literal, TypedDict
 from langgraph.graph import END, START, StateGraph
 
 from backend.app.agents.sql_agent import run_sql_agent
+from backend.app.agents.vision_agent import run_vision_agent
 from ingestion.retrieval import DocumentRetriever
 
 
@@ -213,9 +214,17 @@ def sql_agent(
     }
 
 
-def vision_unavailable(
+def vision_agent(
     state: OmniBrainState,
 ) -> OmniBrainState:
+
+    query = state["query"]
+    top_k = state.get("top_k", 3)
+
+    result = run_vision_agent(
+        query=query,
+        top_k=top_k,
+    )
 
     trace = list(
         state.get(
@@ -224,14 +233,31 @@ def vision_unavailable(
         )
     )
 
-    trace.append(
-        "vision_agent"
+    trace.extend(
+        result.get(
+            "agent_trace",
+            ["vision_agent"],
+        )
     )
 
     return {
-        "answer": (
-            "The Vision agent is not "
-            "connected yet."
+        "results": result.get(
+            "results",
+            [],
+        ),
+        "context": str(
+            result.get(
+                "results",
+                [],
+            )
+        ),
+        "answer": result.get(
+            "answer",
+            "",
+        ),
+        "citations": result.get(
+            "citations",
+            [],
         ),
         "agent_trace": trace,
     }
@@ -250,7 +276,7 @@ def route_after_supervisor(
         return "sql_agent"
 
     if route == "vision":
-        return "vision_unavailable"
+        return "vision_agent"
 
     return "search_agent"
 
@@ -277,8 +303,8 @@ def build_omnibrain_graph():
     )
 
     graph.add_node(
-        "vision_unavailable",
-        vision_unavailable,
+        "vision_agent",
+        vision_agent,
     )
 
     graph.add_edge(
@@ -292,9 +318,7 @@ def build_omnibrain_graph():
         {
             "search_agent": "search_agent",
             "sql_agent": "sql_agent",
-            "vision_unavailable": (
-                "vision_unavailable"
-            ),
+            "vision_agent": "vision_agent",
         },
     )
 
@@ -309,7 +333,7 @@ def build_omnibrain_graph():
     )
 
     graph.add_edge(
-        "vision_unavailable",
+        "vision_agent",
         END,
     )
 
