@@ -164,6 +164,47 @@ class ImageIndex:
 
         return ids
 
+    def search(
+        self,
+        query: str,
+        top_k: int = 5,
+    ) -> List[Dict[str, Any]]:
+
+        if not query or not query.strip():
+            raise ValueError(
+                "Image search query cannot be empty."
+            )
+
+        if top_k <= 0:
+            raise ValueError(
+                "top_k must be greater than 0."
+            )
+
+        self.connect()
+        self._ensure_collection()
+
+        query_embedding = (
+            self.embedding_generator.generate_embedding(
+                query.strip()
+            )
+        )
+
+        results = self.client.query_points(
+            collection_name=self.COLLECTION_NAME,
+            query=query_embedding,
+            limit=top_k,
+            with_payload=True,
+        )
+
+        return [
+            {
+                "id": str(point.id),
+                "score": float(point.score),
+                "metadata": point.payload or {},
+            }
+            for point in results.points
+        ]
+
     def count(self) -> int:
         self.connect()
         self._ensure_collection()
