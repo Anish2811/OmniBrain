@@ -116,37 +116,47 @@ async def chat(request: QueryRequest):
                 ],
             )
 
-        citations.append(
-    SourceCitation(
-        source_type=metadata.get(
-            "document_type",
-            "text",
-        ),
-        content_snippet=metadata.get(
-            "text",
-            "",
-        )[:500],
-        document=metadata.get(
-            "document"
-        ),
-        document_path=metadata.get(
-            "document_path"
-        ),
-        chunk_id=metadata.get(
-            "chunk_id"
-        ),
-        page_number=metadata.get(
-            "page_number"
-        ),
-        word_start=metadata.get(
-            "word_start"
-        ),
-        word_end=metadata.get(
-            "word_end"
-        ),
-        score=result.get("score"),
-    )
-)
+        citations = []
+
+        for result in results:
+            metadata = result.get(
+                "metadata",
+                {},
+            )
+
+            citations.append(
+                SourceCitation(
+                    source_type=metadata.get(
+                        "document_type",
+                        "text",
+                    ),
+                    content_snippet=metadata.get(
+                        "text",
+                        "",
+                    )[:500],
+                    document=metadata.get(
+                        "document"
+                    ),
+                    document_path=metadata.get(
+                        "document_path"
+                    ),
+                    chunk_id=metadata.get(
+                        "chunk_id"
+                    ),
+                    page_number=metadata.get(
+                        "page_number"
+                    ),
+                    word_start=metadata.get(
+                        "word_start"
+                    ),
+                    word_end=metadata.get(
+                        "word_end"
+                    ),
+                    score=result.get(
+                        "score"
+                    ),
+                )
+            )
 
         context = _build_context(results)
 
