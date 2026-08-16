@@ -1,0 +1,8 @@
+define bot refuse to respond
+  "I can only answer questions based on the uploaded documents."
+
+define flow check document scope
+  $allowed = execute check_document_scope
+  if not $allowed
+    bot refuse to respond
+    stop
