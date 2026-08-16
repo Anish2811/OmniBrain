@@ -119,10 +119,25 @@ class DocumentIngestionPipeline:
             images,
             ocr_results,
         ):
+            image_ocr_text = ocr_result["text"].strip()
+
+            # OCR is optional for image indexing.
+            # If OCR is unavailable or returns no text,
+            # fall back to the document's extracted text.
+            if not image_ocr_text:
+                logger.info(
+                    "Using document text fallback for image "
+                    "on page %s.",
+                    image["page"],
+                )
+                image_ocr_text = text.strip()
+
             image_index_records.append(
                 {
                     **image,
-                    "ocr_text": ocr_result["text"],
+                    "document": document.name,
+                    "document_path": str(document),
+                    "ocr_text": image_ocr_text,
                 }
             )
 
@@ -143,6 +158,10 @@ class DocumentIngestionPipeline:
             logger.info(
                 "No images available for image indexing."
             )
+
+        # Close the local Qdrant image client before
+        # opening the text vector database client.
+        self.image_index.close()
 
         chunks = self.chunker.chunk_text(
             text
@@ -194,8 +213,6 @@ class DocumentIngestionPipeline:
             )
         finally:
             self.vector_db.close()
-
-        self.image_index.close()
 
         logger.info(
             "Document processed successfully: %s",
