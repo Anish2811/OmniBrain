@@ -8,6 +8,7 @@ from backend.app.api.schemas import SourceCitation
 
 from Config.Config import settings
 from backend.app.agents.graph import omnibrain_graph
+from backend.app.observability.langfuse import trace_request
 
 
 router = APIRouter(tags=["Chat"])
@@ -161,12 +162,41 @@ async def chat(
         )
 
     try:
-        graph_result = omnibrain_graph.invoke(
-            {
-                "query": request.query.strip(),
+
+        with trace_request(
+            name="omnibrain-chat",
+            metadata={
                 "top_k": request.top_k,
-            }
-        )
+            },
+        ) as trace:
+
+            if trace is not None:
+                trace.update(
+                    input={
+                        "query": request.query.strip(),
+                    }
+                )
+
+            graph_result = omnibrain_graph.invoke(
+                {
+                    "query": request.query.strip(),
+                    "top_k": request.top_k,
+                }
+            )
+
+            if trace is not None:
+                trace.update(
+                    output={
+                        "route": graph_result.get(
+                            "route",
+                            "unknown",
+                        ),
+                        "agent_trace": graph_result.get(
+                            "agent_trace",
+                            [],
+                        ),
+                    }
+                )
 
         route = graph_result.get(
             "route",
