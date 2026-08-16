@@ -18,6 +18,12 @@ class OmniBrainState(TypedDict, total=False):
     agent_trace: list
     error: str
 
+    # Self-RAG state
+    retrieval_relevant: bool
+    retry_count: int
+    max_retries: int
+    rewritten_query: str
+
 
 def _classify_query(
     query: str,
@@ -93,6 +99,8 @@ def supervisor(
             "supervisor",
             f"route:{route}",
         ],
+        "retry_count": 0,
+        "max_retries": 1,
     }
 
 
@@ -178,6 +186,222 @@ def search_agent(
     }
 
 
+def evaluate_retrieval(
+    state: OmniBrainState,
+) -> OmniBrainState:
+
+    results = state.get(
+        "results",
+        [],
+    )
+
+    retry_count = state.get(
+        "retry_count",
+        0,
+    )
+
+    max_retries = state.get(
+        "max_retries",
+        1,
+    )
+
+    trace = list(
+        state.get(
+            "agent_trace",
+            [],
+        )
+    )
+
+    if not results:
+        relevant = False
+
+    else:
+        scores = []
+
+        for result in results:
+            score = result.get("score")
+
+            if score is not None:
+                try:
+                    scores.append(
+                        float(score)
+                    )
+                except (
+                    TypeError,
+                    ValueError,
+                ):
+                    continue
+
+        if not scores:
+            relevant = False
+        else:
+            best_score = max(scores)
+
+            # Qdrant cosine similarity threshold.
+            relevant = best_score >= 0.45
+
+    if relevant:
+        trace.append(
+            "retrieval_evaluator:relevant"
+        )
+    else:
+        trace.append(
+            "retrieval_evaluator:irrelevant"
+        )
+
+    if retry_count >= max_retries:
+        trace.append(
+            "self_rag:max_retries_reached"
+        )
+
+        if not relevant:
+            return {
+                "retrieval_relevant": False,
+                "results": [],
+                "context": "",
+                "answer": (
+                    "I could not find relevant information "
+                    "in the uploaded documents."
+                ),
+                "citations": [],
+                "agent_trace": trace,
+            }
+
+    return {
+        "retrieval_relevant": relevant,
+        "agent_trace": trace,
+    }
+
+
+def rewrite_query(
+    state: OmniBrainState,
+) -> OmniBrainState:
+
+    original_query = state.get(
+        "query",
+        "",
+    ).strip()
+
+    retry_count = state.get(
+        "retry_count",
+        0,
+    )
+
+    trace = list(
+        state.get(
+            "agent_trace",
+            [],
+        )
+    )
+
+    # Lightweight deterministic query rewriting.
+    # This keeps Self-RAG testable even when the external
+    # LLM quota is unavailable.
+    stop_words = {
+        "what",
+        "is",
+        "are",
+        "was",
+        "were",
+        "the",
+        "a",
+        "an",
+        "does",
+        "do",
+        "did",
+        "show",
+        "tell",
+        "me",
+        "about",
+        "please",
+        "can",
+        "you",
+        "of",
+        "for",
+        "in",
+        "on",
+        "to",
+    }
+
+    words = original_query.replace(
+        "?",
+        "",
+    ).split()
+
+    meaningful_words = [
+        word
+        for word in words
+        if word.lower() not in stop_words
+    ]
+
+    if meaningful_words:
+        rewritten_query = " ".join(
+            meaningful_words
+        )
+    else:
+        rewritten_query = original_query
+
+    trace.extend(
+        [
+            "self_rag",
+            "query_rewriter",
+        ]
+    )
+
+    return {
+        "query": rewritten_query,
+        "rewritten_query": rewritten_query,
+        "retry_count": retry_count + 1,
+        "agent_trace": trace,
+    }
+
+
+def route_after_supervisor(
+    state: OmniBrainState,
+) -> str:
+
+    route = state.get(
+        "route",
+        "search",
+    )
+
+    if route == "sql":
+        return "sql_agent"
+
+    if route == "vision":
+        return "vision_agent"
+
+    return "search_agent"
+
+
+def route_after_retrieval(
+    state: OmniBrainState,
+) -> str:
+
+    relevant = state.get(
+        "retrieval_relevant",
+        False,
+    )
+
+    retry_count = state.get(
+        "retry_count",
+        0,
+    )
+
+    max_retries = state.get(
+        "max_retries",
+        1,
+    )
+
+    if relevant:
+        return "finish_search"
+
+    if retry_count < max_retries:
+        return "rewrite_query"
+
+    return "finish_search"
+
+
 def sql_agent(
     state: OmniBrainState,
 ) -> OmniBrainState:
@@ -219,7 +443,10 @@ def vision_agent(
 ) -> OmniBrainState:
 
     query = state["query"]
-    top_k = state.get("top_k", 3)
+    top_k = state.get(
+        "top_k",
+        3,
+    )
 
     result = run_vision_agent(
         query=query,
@@ -263,24 +490,6 @@ def vision_agent(
     }
 
 
-def route_after_supervisor(
-    state: OmniBrainState,
-) -> str:
-
-    route = state.get(
-        "route",
-        "search",
-    )
-
-    if route == "sql":
-        return "sql_agent"
-
-    if route == "vision":
-        return "vision_agent"
-
-    return "search_agent"
-
-
 def build_omnibrain_graph():
 
     graph = StateGraph(
@@ -295,6 +504,16 @@ def build_omnibrain_graph():
     graph.add_node(
         "search_agent",
         search_agent,
+    )
+
+    graph.add_node(
+        "evaluate_retrieval",
+        evaluate_retrieval,
+    )
+
+    graph.add_node(
+        "rewrite_query",
+        rewrite_query,
     )
 
     graph.add_node(
@@ -322,9 +541,26 @@ def build_omnibrain_graph():
         },
     )
 
+    # Search → relevance evaluation
     graph.add_edge(
         "search_agent",
-        END,
+        "evaluate_retrieval",
+    )
+
+    # Self-RAG decision
+    graph.add_conditional_edges(
+        "evaluate_retrieval",
+        route_after_retrieval,
+        {
+            "finish_search": END,
+            "rewrite_query": "rewrite_query",
+        },
+    )
+
+    # Rewritten query goes back through retrieval.
+    graph.add_edge(
+        "rewrite_query",
+        "search_agent",
     )
 
     graph.add_edge(
