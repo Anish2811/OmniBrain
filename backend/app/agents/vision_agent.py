@@ -218,7 +218,10 @@ def run_vision_agent(
 
     agent = VisionAgent()
 
-    return agent.run(
-        query=query,
-        top_k=top_k,
-    )
+    try:
+        return agent.run(
+            query=query,
+            top_k=top_k,
+        )
+    finally:
+        agent.image_index.close()
