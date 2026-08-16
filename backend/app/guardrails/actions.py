@@ -38,6 +38,10 @@ ALLOWED_TERMS = {
     "average",
     "maximum",
     "minimum",
+    "company",
+    "financial",
+    "report",
+    "belong",
 }
 
 
