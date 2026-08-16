@@ -4,6 +4,7 @@ from langgraph.graph import END, START, StateGraph
 
 from backend.app.agents.sql_agent import run_sql_agent
 from backend.app.agents.vision_agent import run_vision_agent
+from backend.app.guardrails.actions import is_document_scope_query
 from ingestion.retrieval import DocumentRetriever
 
 
@@ -75,11 +76,60 @@ def _classify_query(
     return "search"
 
 
+def guardrail(
+    state: OmniBrainState,
+) -> OmniBrainState:
+
+    query = state.get(
+        "query",
+        "",
+    ).strip()
+
+    trace = list(
+        state.get(
+            "agent_trace",
+            [],
+        )
+    )
+
+    allowed = is_document_scope_query(
+        query
+    )
+
+    if allowed:
+        trace.append(
+            "guardrail:allowed"
+        )
+
+        return {
+            "agent_trace": trace,
+        }
+
+    trace.append(
+        "guardrail:blocked"
+    )
+
+    return {
+        "answer": (
+            "I can only answer questions "
+            "based on the uploaded documents."
+        ),
+        "results": [],
+        "context": "",
+        "citations": [],
+        "error": "Query is outside document scope.",
+        "agent_trace": trace,
+    }
+
+
 def supervisor(
     state: OmniBrainState,
 ) -> OmniBrainState:
 
-    query = state.get("query", "").strip()
+    query = state.get(
+        "query",
+        "",
+    ).strip()
 
     if not query:
         return {
@@ -91,7 +141,9 @@ def supervisor(
             "error": "Query cannot be empty.",
         }
 
-    route = _classify_query(query)
+    route = _classify_query(
+        query
+    )
 
     return {
         "route": route,
@@ -109,7 +161,11 @@ def search_agent(
 ) -> OmniBrainState:
 
     query = state["query"]
-    top_k = state.get("top_k", 5)
+
+    top_k = state.get(
+        "top_k",
+        5,
+    )
 
     retriever = DocumentRetriever()
 
@@ -219,7 +275,9 @@ def evaluate_retrieval(
         scores = []
 
         for result in results:
-            score = result.get("score")
+            score = result.get(
+                "score"
+            )
 
             if score is not None:
                 try:
@@ -244,6 +302,7 @@ def evaluate_retrieval(
         trace.append(
             "retrieval_evaluator:relevant"
         )
+
     else:
         trace.append(
             "retrieval_evaluator:irrelevant"
@@ -295,8 +354,7 @@ def rewrite_query(
     )
 
     # Lightweight deterministic query rewriting.
-    # This keeps Self-RAG testable even when the external
-    # LLM quota is unavailable.
+    # Keeps Self-RAG testable without an external LLM.
     stop_words = {
         "what",
         "is",
@@ -323,10 +381,11 @@ def rewrite_query(
         "to",
     }
 
-    words = original_query.replace(
-        "?",
-        "",
-    ).split()
+    words = (
+        original_query
+        .replace("?", "")
+        .split()
+    )
 
     meaningful_words = [
         word
@@ -354,24 +413,6 @@ def rewrite_query(
         "retry_count": retry_count + 1,
         "agent_trace": trace,
     }
-
-
-def route_after_supervisor(
-    state: OmniBrainState,
-) -> str:
-
-    route = state.get(
-        "route",
-        "search",
-    )
-
-    if route == "sql":
-        return "sql_agent"
-
-    if route == "vision":
-        return "vision_agent"
-
-    return "search_agent"
 
 
 def route_after_retrieval(
@@ -443,6 +484,7 @@ def vision_agent(
 ) -> OmniBrainState:
 
     query = state["query"]
+
     top_k = state.get(
         "top_k",
         3,
@@ -490,17 +532,53 @@ def vision_agent(
     }
 
 
+def route_after_guardrail(
+    state: OmniBrainState,
+) -> str:
+
+    if state.get("error"):
+        return "blocked"
+
+    return "supervisor"
+
+
+def route_after_supervisor(
+    state: OmniBrainState,
+) -> str:
+
+    route = state.get(
+        "route",
+        "search",
+    )
+
+    if route == "sql":
+        return "sql_agent"
+
+    if route == "vision":
+        return "vision_agent"
+
+    return "search_agent"
+
+
 def build_omnibrain_graph():
 
     graph = StateGraph(
         OmniBrainState
     )
 
+    # Guardrail
+    graph.add_node(
+        "guardrail",
+        guardrail,
+    )
+
+    # Supervisor
     graph.add_node(
         "supervisor",
         supervisor,
     )
 
+    # Agents
     graph.add_node(
         "search_agent",
         search_agent,
@@ -526,11 +604,23 @@ def build_omnibrain_graph():
         vision_agent,
     )
 
+    # START → Guardrail
     graph.add_edge(
         START,
-        "supervisor",
+        "guardrail",
     )
 
+    # Guardrail → Supervisor / Block
+    graph.add_conditional_edges(
+        "guardrail",
+        route_after_guardrail,
+        {
+            "supervisor": "supervisor",
+            "blocked": END,
+        },
+    )
+
+    # Supervisor → Agent
     graph.add_conditional_edges(
         "supervisor",
         route_after_supervisor,
@@ -541,13 +631,13 @@ def build_omnibrain_graph():
         },
     )
 
-    # Search → relevance evaluation
+    # Search → Retrieval Evaluation
     graph.add_edge(
         "search_agent",
         "evaluate_retrieval",
     )
 
-    # Self-RAG decision
+    # Self-RAG Decision
     graph.add_conditional_edges(
         "evaluate_retrieval",
         route_after_retrieval,
@@ -557,12 +647,13 @@ def build_omnibrain_graph():
         },
     )
 
-    # Rewritten query goes back through retrieval.
+    # Rewritten query → Search again
     graph.add_edge(
         "rewrite_query",
         "search_agent",
     )
 
+    # SQL / Vision → END
     graph.add_edge(
         "sql_agent",
         END,
