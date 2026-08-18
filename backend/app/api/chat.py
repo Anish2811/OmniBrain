@@ -229,6 +229,14 @@ async def chat(
 
         if route == "search":
 
+            # Check if guardrail blocked the query
+            if graph_result.get("error") == "Query is outside document scope.":
+                return QueryResponse(
+                    answer=answer,
+                    citations=[],
+                    agent_trace=agent_trace,
+                )
+
             if not results:
                 return QueryResponse(
                     answer=(

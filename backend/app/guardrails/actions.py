@@ -55,9 +55,13 @@ def is_document_scope_query(
 
     words = set(
         query.lower()
+        .strip()
         .replace("?", " ")
         .replace(",", " ")
         .replace(".", " ")
+        .replace(";", " ")
+        .replace(":", " ")
+        .replace("!", " ")
         .split()
     )
 

@@ -119,6 +119,7 @@ def guardrail(
         "citations": [],
         "error": "Query is outside document scope.",
         "agent_trace": trace,
+        "route": "blocked",
     }
 
 
@@ -296,7 +297,7 @@ def evaluate_retrieval(
             best_score = max(scores)
 
             # Qdrant cosine similarity threshold.
-            relevant = best_score >= 0.45
+            relevant = best_score >= 0.20
 
     if relevant:
         trace.append(
