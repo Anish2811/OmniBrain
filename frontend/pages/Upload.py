@@ -16,7 +16,7 @@ st.subheader("Upload Document")
 
 uploaded_file = st.file_uploader(
     "Choose a financial report",
-    type=["pdf", "json"]
+    type=["pdf"]
 )
 
 if uploaded_file:
@@ -43,7 +43,7 @@ with col1:
     st.info("PDF Reports")
 
 with col2:
-    st.info("JSON Files")
+    st.info("PDF Format Only")
 
 st.markdown("---")
 
@@ -63,6 +63,5 @@ st.write("""
 
 st.markdown("---")
 
-st.warning("Actual backend upload functionality will be connected after API integration.")
 
 st.info("Maximum upload size and supported formats can be updated later.")
