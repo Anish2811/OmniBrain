@@ -45,6 +45,7 @@ def _classify_query(
         "maximum",
         "minimum",
         "group by",
+        "how many",
     ]
 
     vision_keywords = [

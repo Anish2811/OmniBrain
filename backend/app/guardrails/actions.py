@@ -9,6 +9,7 @@ ALLOWED_TERMS = {
     "file",
     "uploaded",
     "transaction",
+    "transactions",
     "payment",
     "amount",
     "bank",
@@ -42,6 +43,17 @@ ALLOWED_TERMS = {
     "financial",
     "report",
     "belong",
+    "trend",
+    "october",
+    "march",
+    "september",
+    "april",
+    "may",
+    "june",
+    "july",
+    "august",
+    "november",
+    "december",
 }
 
 

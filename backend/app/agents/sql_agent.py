@@ -62,6 +62,16 @@ class SQLAgent:
             """
 
         if (
+            "count" in query_lower
+            or "how many" in query_lower
+        ):
+            return """
+                SELECT
+                    COUNT(*) AS transaction_count
+                FROM transactions
+            """
+
+        if (
             "transaction amount" in query_lower
             or "transaction" in query_lower
         ):
@@ -76,13 +86,6 @@ class SQLAgent:
                 FROM transactions
                 ORDER BY transaction_date DESC
                 LIMIT 10
-            """
-
-        if "count" in query_lower:
-            return """
-                SELECT
-                    COUNT(*) AS transaction_count
-                FROM transactions
             """
 
         raise ValueError(
