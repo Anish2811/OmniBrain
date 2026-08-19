@@ -1,5 +1,5 @@
 import streamlit as st
-from frontend.utils.api_client import upload_document
+from utils.api_client import upload_document
 
 st.title("Upload Financial Reports")
 
@@ -63,5 +63,6 @@ st.write("""
 
 st.markdown("---")
 
+st.success("Backend upload integration is active.")
 
 st.info("Maximum upload size and supported formats can be updated later.")

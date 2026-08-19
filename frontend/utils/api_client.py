@@ -46,20 +46,22 @@ def upload_document(uploaded_file):
 
     except requests.RequestException:
         return {
-        "success": False,
-        "message": "Could not connect to the backend. Please try again."
-    }
+            "success": False,
+            "message": "Could not connect to the backend. Please try again."
+        }
 
-def request_analysis(query):
+
+def request_analysis(query, top_k=5):
     """Send an analysis request to the backend."""
 
     try:
         response = requests.post(
             f"{BASE_URL}/chat",
             json={
-                "query": query
+                "query": query,
+                "top_k": top_k
             },
-            timeout=60
+            timeout=180
         )
 
         response.raise_for_status()
